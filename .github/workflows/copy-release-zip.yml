@@ -1,0 +1,31 @@
+name: Copy release ZIP to workflow artifact
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/copy-release-zip.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  copy-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download existing GitHub Release asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://github.com/Rageru1/launcher/releases/download/launcher/launcher.github.zip"
+          curl --fail --location --retry 3 --output launcher.github.zip "$url"
+          echo "0f5d90453019a06359daf82391b7f508820a7abbe939725131acbcfb2af19e1b  launcher.github.zip" | sha256sum --check
+
+      - name: Upload ZIP as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: launcher-github-zip
+          path: launcher.github.zip
+          if-no-files-found: error
+          retention-days: 1
