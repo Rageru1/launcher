@@ -1,4 +1,4 @@
-name: Copy release ZIP to workflow artifact
+name: Split release ZIP into downloadable parts
 
 on:
   workflow_dispatch:
@@ -11,21 +11,32 @@ permissions:
   contents: read
 
 jobs:
-  copy-release:
+  split:
+    name: Download and export part ${{ matrix.part }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [0, 1, 2, 3, 4, 5, 6]
     steps:
-      - name: Download existing GitHub Release asset
+      - name: Download and verify original release
         shell: bash
         run: |
           set -euo pipefail
-          url="https://github.com/Rageru1/launcher/releases/download/launcher/launcher.github.zip"
-          curl --fail --location --retry 3 --output launcher.github.zip "$url"
+          curl --fail --location --retry 3 --output launcher.github.zip "https://github.com/Rageru1/launcher/releases/download/launcher/launcher.github.zip"
           echo "0f5d90453019a06359daf82391b7f508820a7abbe939725131acbcfb2af19e1b  launcher.github.zip" | sha256sum --check
 
-      - name: Upload ZIP as workflow artifact
+      - name: Extract one 75 MiB part
+        shell: bash
+        run: |
+          set -euo pipefail
+          dd if=launcher.github.zip of=launcher-part-${{ matrix.part }}.bin bs=1M skip=$((${{ matrix.part }} * 75)) count=75 status=none
+          test -s launcher-part-${{ matrix.part }}.bin
+
+      - name: Upload this part separately
         uses: actions/upload-artifact@v4
         with:
-          name: launcher-github-zip
-          path: launcher.github.zip
+          name: launcher-part-${{ matrix.part }}
+          path: launcher-part-${{ matrix.part }}.bin
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 2
